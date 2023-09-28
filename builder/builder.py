@@ -55,19 +55,23 @@ class Builder:
         final_time = self.time_to_jd(header_data['DATE-END'], header_data['TIME-END'])
         delta_t = (final_time - initial_time) / len(hdul[0].data)
 
-        wfall = np.transpose(hdul[0].data)
+        # tinha um transpose aqui, retirei pq a imagem tava vindo de cima.
+        wfall = hdul[0].data
 
+        # print(wfall, enumerate(wfall))
         rows = []
         for i, wf in enumerate(wfall):
+            partialData = wfall[i]
             row = {}
             for key in header_data.keys():
                 val = header_data[key]
                 if isinstance(val, (int, float, str, bool)):  # você pode adicionar mais tipos aqui se necessário
                     row[key] = val
-            row['water_fall'] = json.dumps(wf.tolist())
+            row['water_fall'] = json.dumps(partialData, cls=NumpyArrayEncoder)
             row['delta_t'] = float(initial_time + delta_t * i)
+            # print(row);
             rows.append(row)
-
+        #
         df = pd.DataFrame(rows)
         return df
 

@@ -7,8 +7,9 @@ import sys
 
 from builder.builder import Builder
 from flask_cors import CORS, cross_origin
-from flask import Flask, jsonify, request, abort
+from flask import Flask, jsonify, request, abort, Response, send_file
 import numpy as np
+import io
 
 from report.report import Report
 
@@ -53,9 +54,9 @@ def process():
 @cross_origin()
 def get_data():
     args = request.args
-    data_processing_method = args.get("data_processing_method", default=None, type=str)
+    data_processing_method = args.get("processing_method", default=None, type=str)
     chart_type = args.get("chart_type", default=None, type=str)
-    data_column = args.get("data_column", default=None, type=str)
+    data_column = args.get("select", default=None, type=str)
     identifier = args.get("identifier", default=None, type=str)
     filter = args.get("filter", default=None, type=str)
     if filter is not None:
@@ -75,6 +76,40 @@ def get_data():
                 return jsonify(data=mean)
 
         return jsonify(data=my_tuple)
+    except Exception as e:
+        raise e
+        return abort(400, e)
+
+@app.route("/data/generate_fits", methods=['GET'])
+@cross_origin()
+def generate_fits():
+    args = request.args
+    data_processing_method = args.get("data_processing_method", default=None, type=str)
+    chart_type = args.get("chart_type", default=None, type=str)
+    data_column = args.get("data_column", default=None, type=str)
+    identifier = args.get("identifier", default=None, type=str)
+    filter = args.get("filter", default=None, type=str)
+    if filter is not None:
+        print(filter)
+        filter = json.loads(filter)
+    if identifier is None:
+        return abort(400, dict({'error': 'Identifier is null'}))
+    try:
+        report = Report(identifier)
+        hdu = report.generate(chart_type, data_processing_method, data_column, filter)
+
+        print(hdu, hdu.header);
+        # Crie um objeto de memória para armazenar o FITS
+        memory_file = io.BytesIO()
+
+        # Escreva os dados FITS no objeto de memória
+        hdu.writeto(memory_file)
+
+        # Configure o ponteiro do objeto de memória para o início
+        memory_file.seek(0)
+
+        # Retorne o arquivo FITS como uma resposta HTTP
+        return Response(memory_file.read(), content_type='application/fits')
     except Exception as e:
         raise e
         return abort(400, e)
